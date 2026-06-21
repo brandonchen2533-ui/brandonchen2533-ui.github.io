@@ -10,9 +10,10 @@ import { HomeIcon, ListIcon, PlusIcon, ScanIcon, CameraIcon, XIcon } from "./ui/
 const BarcodeScanner = lazy(() => import("./components/BarcodeScanner.tsx").then((m) => ({ default: m.BarcodeScanner })));
 const ProductSheet = lazy(() => import("./components/ProductSheet.tsx").then((m) => ({ default: m.ProductSheet })));
 const CameraCapture = lazy(() => import("./components/CameraCapture.tsx").then((m) => ({ default: m.CameraCapture })));
+const FoodSearch = lazy(() => import("./components/FoodSearch.tsx").then((m) => ({ default: m.FoodSearch })));
 
 type Tab = "diary" | "history";
-type Overlay = null | "actions" | "scanner" | "photo" | { kind: "product"; barcode: string };
+type Overlay = null | "actions" | "scanner" | "photo" | "search" | { kind: "product"; barcode: string };
 
 export default function App() {
   return (
@@ -54,6 +55,7 @@ function Shell() {
           onClose={() => setOverlay(null)}
           onScan={() => setOverlay("scanner")}
           onPhoto={() => setOverlay("photo")}
+          onSearch={() => setOverlay("search")}
         />
       )}
 
@@ -70,6 +72,13 @@ function Shell() {
         )}
 
         {overlay === "photo" && <CameraCapture onClose={() => setOverlay(null)} />}
+
+        {overlay === "search" && (
+          <FoodSearch
+            onClose={() => setOverlay(null)}
+            onPick={(barcode) => setOverlay({ kind: "product", barcode })}
+          />
+        )}
       </Suspense>
     </div>
   );
@@ -92,7 +101,17 @@ function NavButton({ active, onClick, icon, label }: { active: boolean; onClick:
   );
 }
 
-function ActionSheet({ onClose, onScan, onPhoto }: { onClose: () => void; onScan: () => void; onPhoto: () => void }) {
+function ActionSheet({
+  onClose,
+  onScan,
+  onPhoto,
+  onSearch,
+}: {
+  onClose: () => void;
+  onScan: () => void;
+  onPhoto: () => void;
+  onSearch: () => void;
+}) {
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div className="animate-rise w-full max-w-md rounded-t-3xl bg-paper p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
@@ -102,6 +121,17 @@ function ActionSheet({ onClose, onScan, onPhoto }: { onClose: () => void; onScan
             <XIcon size={18} />
           </button>
         </div>
+        {/* search bar — tapping opens full search */}
+        <button
+          onClick={onSearch}
+          className="mb-3 flex w-full items-center gap-2 rounded-xl bg-white px-3 py-3 text-left text-sm text-muted ring-1 ring-black/5 active:bg-black/5"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" strokeLinecap="round" />
+          </svg>
+          Search foods by name…
+        </button>
         <div className="grid grid-cols-2 gap-3">
           <ActionCard icon={<ScanIcon size={28} />} title="Scan barcode" desc="Health score & additives" onClick={onScan} />
           <ActionCard icon={<CameraIcon size={28} />} title="Snap a meal" desc="AI calories & macros" onClick={onPhoto} />

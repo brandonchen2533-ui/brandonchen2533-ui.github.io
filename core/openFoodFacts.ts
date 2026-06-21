@@ -98,47 +98,64 @@ async function fetchFrom(base: string, barcode: string, kind?: ProductKind): Pro
   };
 }
 
-/**
- * Find healthier products in the same category. Searches Open Food Facts by the
- * product's most specific category, returns lightweight Product candidates.
- * Scoring/filtering is left to the caller (keeps this module score-agnostic).
- */
-export async function searchCategory(categoryTag: string, pageSize = 24): Promise<Product[]> {
-  const url =
-    `${OFF}/api/v2/search?categories_tags_en=${encodeURIComponent(categoryTag.replace(/^en:/, ""))}` +
-    `&fields=code,product_name,brands,image_front_url,nutriments,additives_tags,labels_tags,nova_group,categories_tags,quantity` +
-    `&sort_by=unique_scans_n&page_size=${pageSize}`;
+const LIST_FIELDS =
+  "code,product_name,brands,image_front_url,image_url,nutriments,additives_tags,labels_tags,nova_group,categories_tags,quantity";
 
-  // OFF's search endpoint is load-shedding-prone (intermittent 503s). Retry a
-  // couple of times with backoff before giving up.
+/** Map a lightweight search/list hit into a Product (no full detail fields). */
+function mapListProduct(p: OffProduct & { code?: string }): Product {
+  return {
+    barcode: String(p.code),
+    name: p.product_name!.trim(),
+    brand: p.brands?.split(",")[0]?.trim(),
+    kind: inferKind(p.categories_tags),
+    imageUrl: p.image_front_url || p.image_url,
+    quantity: p.quantity,
+    nutriments: mapNutriments(p.nutriments),
+    additiveTags: p.additives_tags,
+    labels: p.labels_tags?.map((l) => l.replace(/^en:/, "")),
+    categoryTags: p.categories_tags,
+    novaGroup: (p.nova_group as Product["novaGroup"]) || undefined,
+    source: "openfoodfacts",
+  };
+}
+
+/** Fetch a list endpoint with retry (OFF search is load-shedding-prone). */
+async function fetchProductList(url: string, signal?: AbortSignal): Promise<Product[]> {
   let res: Response | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
-    res = await fetch(url, { headers: { "User-Agent": "LOUIS-App/0.1 (health scanner)" } }).catch(() => null);
+    res = await fetch(url, { headers: { "User-Agent": "LOUIS-App/0.1 (health scanner)" }, signal }).catch(() => null);
     if (res && res.ok) break;
     if (res && res.status < 500) break; // client error → don't retry
     await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
   }
   if (!res || !res.ok) return [];
-
   const data = (await res.json().catch(() => ({}))) as { products?: (OffProduct & { code?: string })[] };
   if (!data.products) return [];
+  return data.products.filter((p) => p.product_name && p.code && p.nutriments).map(mapListProduct);
+}
 
-  return data.products
-    .filter((p) => p.product_name && p.code && p.nutriments)
-    .map((p) => ({
-      barcode: String(p.code),
-      name: p.product_name!.trim(),
-      brand: p.brands?.split(",")[0]?.trim(),
-      kind: inferKind(p.categories_tags),
-      imageUrl: p.image_front_url || p.image_url,
-      quantity: p.quantity,
-      nutriments: mapNutriments(p.nutriments),
-      additiveTags: p.additives_tags,
-      labels: p.labels_tags?.map((l) => l.replace(/^en:/, "")),
-      categoryTags: p.categories_tags,
-      novaGroup: (p.nova_group as Product["novaGroup"]) || undefined,
-      source: "openfoodfacts" as const,
-    }));
+/**
+ * Find healthier products in the same category. Returns lightweight Product
+ * candidates; scoring/filtering is left to the caller.
+ */
+export async function searchCategory(categoryTag: string, pageSize = 24): Promise<Product[]> {
+  const url =
+    `${OFF}/api/v2/search?categories_tags_en=${encodeURIComponent(categoryTag.replace(/^en:/, ""))}` +
+    `&fields=${LIST_FIELDS}&sort_by=unique_scans_n&page_size=${pageSize}`;
+  return fetchProductList(url);
+}
+
+/**
+ * Free-text product search by name/brand. Returns lightweight Product hits,
+ * most-scanned first. Pass an AbortSignal to cancel superseded queries.
+ */
+export async function searchProducts(query: string, signal?: AbortSignal, pageSize = 20): Promise<Product[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  const url =
+    `${OFF}/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1` +
+    `&fields=${LIST_FIELDS}&sort_by=unique_scans_n&page_size=${pageSize}`;
+  return fetchProductList(url, signal);
 }
 
 /** Look up a barcode across Open Food Facts, then Open Beauty Facts. */
