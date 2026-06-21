@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/* ---- LOUIS design tokens ---- */
+@theme {
+  --color-ink: #0d1117;
+  --color-ink-soft: #161b22;
+  --color-ink-line: #232a33;
+  --color-paper: #f7f8f5;
+  --color-cloud: #ffffff;
+  --color-muted: #8b97a7;
+
+  /* health score gradient anchors (Yuka-style) */
+  --color-score-bad: #ee3a3a;
+  --color-score-poor: #f59e36;
+  --color-score-ok: #f4cf3a;
+  --color-score-good: #8bca3e;
+  --color-score-great: #1fab54;
+
+  --color-brand: #1fab54;
+  --color-brand-dark: #138a42;
+
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* hide scrollbars on horizontal scrollers but keep function */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes louis-pop {
+  0% { transform: scale(0.92); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-pop {
+  animation: louis-pop 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes louis-rise {
+  0% { transform: translateY(10px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.animate-rise {
+  animation: louis-rise 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}

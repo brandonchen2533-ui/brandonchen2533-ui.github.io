@@ -1,0 +1,16 @@
+{
+  "name": "LOUIS — eat clean, track easy",
+  "short_name": "LOUIS",
+  "description": "Scan or snap your food to get calories, macros and a 0–100 health score.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f8f5",
+  "theme_color": "#1fab54",
+  "categories": ["health", "food", "lifestyle"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
