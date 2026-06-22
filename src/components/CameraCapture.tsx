@@ -4,6 +4,7 @@ import { isoDate, makeId } from "../../core/diary.ts";
 import type { DiaryEntry } from "../../core/types.ts";
 import { ScoreRing } from "../ui/ScoreRing.tsx";
 import { CameraIcon, CheckIcon, XIcon, BoltIcon } from "../ui/icons.tsx";
+import { downscaleDataUrl } from "../util/image.ts";
 import { useStore } from "../store.tsx";
 
 type Phase =
@@ -27,7 +28,9 @@ export function CameraCapture({ onClose }: { onClose: () => void }) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = async () => {
-      const image = reader.result as string;
+      const raw = reader.result as string;
+      // Downscale before sending/storing (faster upload, smaller localStorage).
+      const image = await downscaleDataUrl(raw);
       setPhase({ k: "estimating", image });
       try {
         const est = await estimatePhoto(image);
