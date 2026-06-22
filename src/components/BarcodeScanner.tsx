@@ -35,25 +35,42 @@ export function BarcodeScanner({ onDetected, onClose }: Props) {
     let stopped = false;
     let controls: { stop: () => void } | undefined;
 
+    const onResult = (result: { getText: () => string } | undefined) => {
+      if (result && !stopped) {
+        stopped = true;
+        controls?.stop();
+        onDetected(result.getText());
+      }
+    };
+
+    // Explicitly request the REAR camera — otherwise phones default to the
+    // front/selfie camera, which can't scan a barcode.
     reader
-      .decodeFromVideoDevice(undefined, videoRef.current!, (result) => {
-        if (result && !stopped) {
-          stopped = true;
-          controls?.stop();
-          onDetected(result.getText());
-        }
-      })
+      .decodeFromConstraints(
+        { video: { facingMode: { ideal: "environment" } } },
+        videoRef.current!,
+        onResult
+      )
       .then((c) => {
         controls = c;
         setStarting(false);
       })
       .catch((e: unknown) => {
-        setStarting(false);
-        setError(
-          e instanceof DOMException && e.name === "NotAllowedError"
-            ? "Camera permission denied. Enter a barcode below instead."
-            : "No camera available. Enter a barcode below instead."
-        );
+        // Fall back to the default camera if the environment constraint fails.
+        reader
+          .decodeFromVideoDevice(undefined, videoRef.current!, onResult)
+          .then((c) => {
+            controls = c;
+            setStarting(false);
+          })
+          .catch(() => {
+            setStarting(false);
+            setError(
+              e instanceof DOMException && e.name === "NotAllowedError"
+                ? "Camera permission denied. Enter a barcode below instead."
+                : "No camera available. Enter a barcode below instead."
+            );
+          });
       });
 
     return () => {
