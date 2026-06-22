@@ -57,7 +57,7 @@ export interface Product {
   /** Open Food Facts' per-nutrient level assessment. */
   nutrientLevels?: Partial<Record<"fat" | "saturatedFat" | "sugars" | "salt", NutrientLevel>>;
   novaGroup?: 1 | 2 | 3 | 4; // food processing level
-  source: "openfoodfacts" | "manual" | "photo";
+  source: "openfoodfacts" | "usda" | "manual" | "photo";
 }
 
 /** Low / moderate / high assessment for a single nutrient. */

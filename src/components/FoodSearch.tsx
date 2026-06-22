@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { searchProducts } from "../../core/openFoodFacts.ts";
+import { searchFoods } from "../../core/foodSearch.ts";
 import { scoreProduct } from "../../core/scoring/index.ts";
 import type { Product } from "../../core/types.ts";
 import { ScorePill } from "../ui/ScoreRing.tsx";
 import { XIcon, LeafIcon } from "../ui/icons.tsx";
 
 interface Props {
-  onPick: (barcode: string) => void;
+  onPick: (product: Product) => void;
   onClose: () => void;
 }
 
@@ -36,7 +36,7 @@ export function FoodSearch({ onPick, onClose }: Props) {
     const t = setTimeout(async () => {
       setState({ phase: "searching" });
       try {
-        const products = await searchProducts(q, controller.signal);
+        const products = await searchFoods(q, controller.signal);
         if (controller.signal.aborted) return;
         if (!products.length) return setState({ phase: "empty" });
         const items = products
@@ -104,7 +104,7 @@ export function FoodSearch({ onPick, onClose }: Props) {
             {state.items.map(({ product, score }) => (
               <button
                 key={product.barcode}
-                onClick={() => onPick(product.barcode)}
+                onClick={() => onPick(product)}
                 className="flex w-full items-center gap-3 rounded-2xl bg-white p-2.5 text-left ring-1 ring-black/5 transition active:scale-[0.99] active:bg-black/5"
               >
                 <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-paper">

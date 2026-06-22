@@ -3,6 +3,11 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
 import { configureCache } from "../core/cache.ts";
+import { setUsdaKey } from "../core/usda.ts";
+
+// Optional free USDA key (https://fdc.nal.usda.gov/api-key-signup) for higher
+// rate limits; falls back to the shared DEMO_KEY when unset.
+setUsdaKey(import.meta.env.VITE_USDA_API_KEY);
 
 // Back the core lookup cache with localStorage so scanned products persist
 // across reloads and remain available offline.

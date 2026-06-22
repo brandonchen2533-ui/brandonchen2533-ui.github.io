@@ -12,8 +12,16 @@ const ProductSheet = lazy(() => import("./components/ProductSheet.tsx").then((m)
 const CameraCapture = lazy(() => import("./components/CameraCapture.tsx").then((m) => ({ default: m.CameraCapture })));
 const FoodSearch = lazy(() => import("./components/FoodSearch.tsx").then((m) => ({ default: m.FoodSearch })));
 
+import type { Product } from "../core/types.ts";
+
 type Tab = "diary" | "history";
-type Overlay = null | "actions" | "scanner" | "photo" | "search" | { kind: "product"; barcode: string };
+type Overlay =
+  | null
+  | "actions"
+  | "scanner"
+  | "photo"
+  | "search"
+  | { kind: "product"; barcode?: string; product?: Product };
 
 export default function App() {
   return (
@@ -68,7 +76,7 @@ function Shell() {
         )}
 
         {overlay && typeof overlay === "object" && overlay.kind === "product" && (
-          <ProductSheet barcode={overlay.barcode} onClose={() => setOverlay(null)} />
+          <ProductSheet barcode={overlay.barcode} product={overlay.product} onClose={() => setOverlay(null)} />
         )}
 
         {overlay === "photo" && <CameraCapture onClose={() => setOverlay(null)} />}
@@ -76,7 +84,7 @@ function Shell() {
         {overlay === "search" && (
           <FoodSearch
             onClose={() => setOverlay(null)}
-            onPick={(barcode) => setOverlay({ kind: "product", barcode })}
+            onPick={(product) => setOverlay({ kind: "product", product })}
           />
         )}
       </Suspense>

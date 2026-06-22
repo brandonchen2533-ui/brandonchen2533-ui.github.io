@@ -21,10 +21,20 @@ const RISK_LABEL = ["No risk", "Limited risk", "Moderate risk", "High risk"];
 const RISK_COLOR = ["#1fab54", "#8bca3e", "#f59e36", "#ee3a3a"];
 const MEALS: DiaryEntry["meal"][] = ["breakfast", "lunch", "dinner", "snack"];
 
-export function ProductSheet({ barcode, onClose }: { barcode: string; onClose: () => void }) {
+type Target = { barcode: string } | { product: Product };
+
+export function ProductSheet({
+  barcode,
+  product,
+  onClose,
+}: {
+  barcode?: string;
+  product?: Product;
+  onClose: () => void;
+}) {
   const { addEntry } = useStore();
-  // `code` is stateful so tapping an alternative navigates within the sheet.
-  const [code, setCode] = useState(barcode);
+  // Target is stateful so tapping an alternative navigates within the sheet.
+  const [target, setTarget] = useState<Target>(product ? { product } : { barcode: barcode ?? "" });
   const [state, setState] = useState<State>({ phase: "loading" });
   const [portion, setPortion] = useState(100);
   const [meal, setMeal] = useState<DiaryEntry["meal"]>(guessMeal());
@@ -36,26 +46,36 @@ export function ProductSheet({ barcode, onClose }: { barcode: string; onClose: (
     setState({ phase: "loading" });
     setAlts(null);
     setLogged(false);
-    lookupBarcode(code)
-      .then((res) => {
-        if (!alive) return;
-        if (!res.found || !res.product) return setState({ phase: "notfound" });
-        const score = scoreProduct(res.product);
-        setState({ phase: "ready", product: res.product, score });
-        setPortion(defaultPortion(res.product));
-        // Only hunt for swaps when there's clear room to improve.
-        if ((res.product.kind === "food" || res.product.kind === "beverage") && score.value < 75) {
-          setAlts("loading");
-          findAlternatives(res.product, score.value)
-            .then((a) => alive && setAlts(a))
-            .catch(() => alive && setAlts([]));
-        }
-      })
-      .catch(() => alive && setState({ phase: "error" }));
+
+    const apply = (p: Product) => {
+      if (!alive) return;
+      const score = scoreProduct(p);
+      setState({ phase: "ready", product: p, score });
+      setPortion(defaultPortion(p));
+      // Only hunt for swaps when there's room to improve and we have a category.
+      if ((p.kind === "food" || p.kind === "beverage") && score.value < 75 && p.categoryTags?.length) {
+        setAlts("loading");
+        findAlternatives(p, score.value)
+          .then((a) => alive && setAlts(a))
+          .catch(() => alive && setAlts([]));
+      }
+    };
+
+    if ("product" in target) {
+      apply(target.product);
+    } else {
+      lookupBarcode(target.barcode)
+        .then((res) => {
+          if (!alive) return;
+          if (!res.found || !res.product) return setState({ phase: "notfound" });
+          apply(res.product);
+        })
+        .catch(() => alive && setState({ phase: "error" }));
+    }
     return () => {
       alive = false;
     };
-  }, [code]);
+  }, [target]);
 
   const macros = useMemo(() => {
     if (state.phase !== "ready") return null;
@@ -89,7 +109,15 @@ export function ProductSheet({ barcode, onClose }: { barcode: string; onClose: (
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 pb-2 pt-4">
-          <span className="text-xs font-medium text-muted">#{code}</span>
+          <span className="text-xs font-medium text-muted">
+            {state.phase === "ready"
+              ? state.product.source === "openfoodfacts"
+                ? `#${state.product.barcode}`
+                : state.product.source === "usda"
+                  ? "USDA FoodData Central"
+                  : ""
+              : ""}
+          </span>
           <button onClick={onClose} className="rounded-full bg-black/5 p-1.5" aria-label="Close">
             <XIcon size={18} />
           </button>
@@ -119,7 +147,7 @@ export function ProductSheet({ barcode, onClose }: { barcode: string; onClose: (
               logged={logged}
               onLog={logIt}
               alts={alts}
-              onPick={setCode}
+              onPick={(b) => setTarget({ barcode: b })}
             />
           )}
         </div>
