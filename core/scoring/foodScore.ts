@@ -1,6 +1,6 @@
 import type { HealthScore, Highlight, Product, ScoreFactor } from "../types.ts";
 import { bandFor, clamp } from "./bands.ts";
-import { analyzeAdditives, additiveScore } from "./additives.ts";
+import { analyzeAdditives, additiveScore, additivesFromText } from "./additives.ts";
 import { computeNutriScore } from "./nutriScore.ts";
 
 // ── Food / beverage health score ──────────────────────────────────────────
@@ -33,8 +33,13 @@ export function scoreFood(p: Product): HealthScore {
   const novaPenalty = p.novaGroup === 4 ? 12 : p.novaGroup === 3 ? 5 : 0;
   const nutritional = clamp(nutri.quality - novaPenalty);
 
-  const concerns = analyzeAdditives(p.additiveTags);
+  // Merge OFF's pre-tagged additives with any we detect in the ingredient text.
+  const mergedTags = [...(p.additiveTags ?? []), ...additivesFromText(p.ingredientsText)];
+  const concerns = analyzeAdditives(mergedTags);
   const additives = additiveScore(concerns);
+
+  // True when we actually have ingredient/additive data to judge.
+  const hasData = !!p.ingredientsText?.trim() || (p.additiveTags?.length ?? 0) > 0;
 
   const isOrganic = p.labels?.some((l) => /organic|bio|eco/i.test(l)) ?? false;
   const organic = isOrganic ? 100 : 0;
@@ -50,7 +55,11 @@ export function scoreFood(p: Product): HealthScore {
       label: "Additives",
       weight: 0.3,
       value: additives,
-      detail: concerns.length ? `${concerns.length} additive${concerns.length > 1 ? "s" : ""}` : "None detected",
+      detail: concerns.length
+        ? `${concerns.length} additive${concerns.length > 1 ? "s" : ""}`
+        : hasData
+          ? "None detected"
+          : "No ingredient data",
     },
     {
       label: "Organic",
@@ -62,11 +71,16 @@ export function scoreFood(p: Product): HealthScore {
 
   const value = Math.round(factors.reduce((s, f) => s + f.value * f.weight, 0));
 
+  const highlights = highlightsFor(p);
+  if (!hasData) {
+    highlights.unshift({ label: "Limited data — ingredients unavailable", good: false });
+  }
+
   return {
     value,
     band: bandFor(value),
     factors,
     concerns,
-    highlights: highlightsFor(p),
+    highlights,
   };
 }
